@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+package communication;
+
+service ClientBroker {
+  rpc RegisterDevice (DeviceRegistrationRequest) returns (DeviceRegistrationResponse) {}
+  rpc RegisterAccount (AccountRegistration) returns (AccountRegistrationResponse) {}
+  rpc ReceiveMessages (stream ClientPacket) returns (stream ServerPacket) {}
+  rpc GetRootKey (Empty) returns (RootKey) {}
+  rpc GetUserIdentity (UserIdentityRequest) returns (UserIdentity) {}
+  rpc Greeting (GreetingRequest) returns (GreetingResponse) {}
+
+}
+
+message UserIdentityRequest {
+  string username = 1;
+}
+
+message UserIdentity {
+  string username = 1;
+  bytes certificate = 2;
+}
+
+message Empty {
+
+}
+
+message RootKey {
+  bytes public_key = 1;
+}
+
+message GreetingRequest {
+  string name = 1;
+}
+
+message GreetingResponse {
+  string greeting = 1;
+}
+
+message DeviceRegistrationRequest {
+  bytes csr = 1;
+}
+
+enum Status {
+  Ok = 0;
+  Unauthorized = 1;
+  AccountExists = 2;
+}
+
+message DeviceRegistrationResponse {
+  Status status = 1;
+  bytes certificate = 2;
+}
+
+message DeviceAuthenticationPacket {
+  int64 timestamp = 1;
+  string device_id = 2;
+  bytes signature = 3; //payload timestamp + device_id
+}
+
+message AccountRegistration {
+  string username = 1;
+  bytes csr = 2;
+}
+
+message AccountRegistrationResponse {
+  Status status = 1;
+  optional bytes certificate = 2;
+}
+
+enum ClientPacketType {
+  Authentication = 0;
+  OutgoingMessage = 1;
+  LinkAccount = 2;
+  UnlinkAccount = 3;
+}
+
+message OutgoingMessagePacket {
+  string recipient = 1;
+  bytes message = 2;
+}
+
+message LinkAccountPacket {
+  int64 timestamp = 1;
+  bytes signature = 2; //payload is timestamp + device_id
+  string username = 3;
+}
+
+message UnlinkAccountPacket {
+  
+}
+
+message ClientPacket {
+  ClientPacketType packet_type = 1;
+  int64 id = 2;
+  optional DeviceAuthenticationPacket authentication = 3;
+  optional OutgoingMessagePacket outgoing_message = 4;
+  optional LinkAccountPacket link_account = 5;
+  optional UnlinkAccountPacket unlink_account = 6;
+
+}
+
+enum ServerPacketType {
+  AuthenticationAck = 0;
+  IncomingMessage = 1;
+  OutgoingMessageAck = 2;
+  AccountLinkAck = 3;
+}
+
+message AuthenticationAckPacket {
+  Status status = 1;
+  int64 id = 2;
+}
+
+message IncomingMessagePacket {
+  optional string from = 1;
+  bytes message = 2;
+}
+
+enum OutgoingMessageAckStatus {
+  SendSuccess = 0;
+  InvalidSendRequest = 1;
+  FailedToDeliver = 2;
+}
+
+message OutgoingMessageAckPacket {
+  OutgoingMessageAckStatus status = 1;
+  int64 id = 2;
+}
+
+enum AccountLinkStatus {
+  LinkSuccess = 0;
+  FailedToVerify = 1;
+  InternalError = 2;
+  LogOutFirst = 3;
+  InvalidLinkRequest = 4;
+}
+
+message AccountLinkAckPacket {
+  OutgoingMessageAckStatus status = 1;
+  int64 id = 2;
+}
+
+message ServerPacket {
+  ServerPacketType packet_type = 1;
+  optional AuthenticationAckPacket authentication_ack = 2;
+  optional IncomingMessagePacket incoming_message = 3;
+  optional OutgoingMessageAckPacket outgoing_message_ack = 4;
+  optional AccountLinkAckPacket account_link_ack = 5;
+}
+
+message PeerMessage {
+  string sender_account = 1;
+  int64 id = 2;
+  bytes encrypted_message = 3;
+  bytes message_signature = 4;
+}
